@@ -31,8 +31,10 @@ In order to build ffmpef on centos you should install the following packcges
 0. nasm
 0. pkgconfig
 0. zlib-devel
+0. yasm ( enable epel to have this ) 
 
 Installation
+
 ```
-yum install autoconf automake cmake freetype-devel gcc gcc-c++ git libtool make mercurial nasm pkgconfig zlib-devel;
+yum install autoconf automake cmake freetype-devel gcc gcc-c++ git libtool make mercurial nasm pkgconfig zlib-devel yasm;
 ``

@@ -59,14 +59,14 @@ make distclean
 
 
 cd ${SOURCE_DIR}
-git clone git://git.opus-codec.org/opus.git
-cd opus
+curl http://downloads.xiph.org/releases/opus/opus-1.1.2.tar.gz -O opus-1.1.2.tar.gz
+tar -zxvf opus-1.1.2.tar.gz
+cd opus-1.1.2
 autoreconf -fiv
 ./configure --prefix="${TARGET_DIR}" --disable-shared
 make
 make install
 make distclean
-
 
 cd ${SOURCE_DIR}
 curl -O http://downloads.xiph.org/releases/ogg/libogg-1.3.2.tar.gz
