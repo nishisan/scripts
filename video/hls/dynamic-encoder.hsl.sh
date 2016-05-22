@@ -18,6 +18,7 @@ BRATES1="512k";
 BRATES2="1024k";
 BRATES3="1512k";
 BRATES4="2048k";
+BRATES5="3072k";
 
 OUTSCRIPT=/tmp/${PREFIX}.sh;
 
@@ -92,18 +93,39 @@ if [ "$ORIG_BITRATE" -gt "1512" ]; then
 
 fi
 
-echo -n -filter:v scale=-1:-1 \
-	-bufsize ${ORIG_BITRATE}k   \
-        -b:v ${ORIG_BITRATE}k -r $FRAME_RATE \
+if [ "$ORIG_BITRATE" -gt "2048" ]; then
+   echo  -n -filter:v scale=-1:-1 \
+        -bufsize ${BRATES4}   \
+        -b:v ${BRATES4} -r $FRAME_RATE \
         -c:v libx264 -x264opts 'keyint=48:min-keyint=48:pic-struct:no-scenecut' -movflags fragkeyframe  \
         -vprofile ${PROFILE} -level ${LEVEL}  -preset $H264_PRESET \
         -g ${FRAME_RATE} -keyint_min $GOP_INTERVAL\
-        -maxrate ${ORIG_BITRATE}k \
+        -maxrate ${BRATES4} \
         -c:a aac \
         -b:a 96k -ac 2 \
         -hls_time $HLS_TIME -hls_list_size 0 \
         -start_number 0 \
-        ${DIR}/out/${PREFIX}_${ORIG_BITRATE}k.m3u8 >> $OUTSCRIPT
+        ${DIR}/out/${PREFIX}_${BRATES4}.m3u8 "  "   \
+        >> $OUTSCRIPT
+fi
+
+if [ "$ORIG_BITRATE" -gt "3072" ]; then
+   echo  -n -filter:v scale=-1:-1 \
+        -bufsize ${BRATES5}   \
+        -b:v ${BRATES5} -r $FRAME_RATE \
+        -c:v libx264 -x264opts 'keyint=48:min-keyint=48:pic-struct:no-scenecut' -movflags fragkeyframe  \
+        -vprofile ${PROFILE} -level ${LEVEL}  -preset $H264_PRESET \
+        -g ${FRAME_RATE} -keyint_min $GOP_INTERVAL\
+        -maxrate ${BRATES5} \
+        -c:a aac \
+        -b:a 96k -ac 2 \
+        -hls_time $HLS_TIME -hls_list_size 0 \
+        -start_number 0 \
+        ${DIR}/out/${PREFIX}_${BRATES5}.m3u8 "  "   \
+        >> $OUTSCRIPT
+fi
+
+
 
 source $OUTSCRIPT
 rm -fv $OUTSCRIPT
