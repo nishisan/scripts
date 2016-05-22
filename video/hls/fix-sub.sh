@@ -1,3 +1,4 @@
 #!/bin/bash
-ffmpeg   -sub_charenc UTF-8 -y -i  "$1"  "$2"
+ffmpeg -sub_charenc iso-8859-1 -y -i  "$1"  "$2"
 
+sed -i s/Arial,16/Arial,24/g "$2"

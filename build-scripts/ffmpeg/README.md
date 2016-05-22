@@ -32,6 +32,10 @@ In order to build ffmpef on centos you should install the following packcges
 0. pkgconfig
 0. zlib-devel
 0. yasm ( enable epel to have this ) 
+0. fontconfig.x86_64 
+0. fontconfig-devel.x86_64 
+0. fribidi-devel.x86_64 
+0. fribidi.x86_64
 
 Installation
 

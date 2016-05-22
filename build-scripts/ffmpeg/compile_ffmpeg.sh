@@ -8,8 +8,9 @@ TARGET_DIR=${DIR}/ffmpeg_build
 SOURCE_DIR=${DIR}/ffmpeg_sources
 mkdir -p ${TARGET_DIR}
 mkdir -p ${SOURCE_DIR}
+export makeflags='-j 8'
 
-# yum -y install autoconf automake cmake freetype-devel gcc gcc-c++ git libtool make mercurial nasm pkgconfig zlib-devel;
+# yum -y install autoconf automake cmake freetype-devel gcc gcc-c++ git libtool make mercurial nasm pkgconfig zlib-devel fontconfig.x86_64 fontconfig-devel.x86_64 fribidi-devel.x86_64 fribidi;
 cd  ${SOURCE_DIR}
 
 # YASM
@@ -35,6 +36,16 @@ cd  ${SOURCE_DIR}
 hg clone https://bitbucket.org/multicoreware/x265
 cd  ${SOURCE_DIR}/x265/build/linux
 cmake -G "Unix Makefiles" -DCMAKE_INSTALL_PREFIX="${TARGET_DIR}" -DENABLE_SHARED:bool=off ../../source
+make
+make install
+
+# yum install fontconfig.x86_64 fontconfig-devel.x86_64 fribidi-devel.x86_64 fribidi -y
+
+cd  ${SOURCE_DIR}
+git clone https://github.com/libass/libass.git
+cd libass
+./autogen.sh
+PKG_CONFIG_PATH="${TARGET_DIR}/lib/pkgconfig" ./configure --prefix="${TARGET_DIR}"
 make
 make install
 
@@ -100,7 +111,7 @@ git config --global http.sslVerify false
 cd ${SOURCE_DIR}
 git clone http://source.ffmpeg.org/git/ffmpeg.git
 cd ffmpeg
-PKG_CONFIG_PATH="${TARGET_DIR}/lib/pkgconfig" ./configure --prefix="${TARGET_DIR}" --extra-cflags="-I${TARGET_DIR}/include" --extra-ldflags="-L${TARGET_DIR}/lib" --bindir="${TARGET_DIR}/bin" --pkg-config-flags="--static" --enable-gpl --enable-nonfree --enable-libfdk-aac --enable-libfreetype --enable-libmp3lame --enable-libopus --enable-libvorbis --enable-libvpx --enable-libx264 --enable-libx265
+PKG_CONFIG_PATH="${TARGET_DIR}/lib/pkgconfig" ./configure --prefix="${TARGET_DIR}" --extra-cflags="-I${TARGET_DIR}/include" --extra-ldflags="-L${TARGET_DIR}/lib" --bindir="${TARGET_DIR}/bin" --pkg-config-flags="--static" --enable-gpl --enable-nonfree --enable-libfdk-aac --enable-libfreetype --enable-libmp3lame --enable-libopus --enable-libvorbis --enable-libvpx --enable-libx264 --enable-libx265 --enable-libass
 make
 make install
 make distclean
