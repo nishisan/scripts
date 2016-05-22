@@ -102,7 +102,7 @@ if [ "$ORIG_BITRATE" -gt "2048" ]; then
         -g ${FRAME_RATE} -keyint_min $GOP_INTERVAL\
         -maxrate ${BRATES4} \
         -c:a aac \
-        -b:a 96k -ac 2 \
+        -b:a 128k -ac 2 \
         -hls_time $HLS_TIME -hls_list_size 0 \
         -start_number 0 \
         ${DIR}/out/${PREFIX}_${BRATES4}.m3u8 "  "   \
@@ -118,7 +118,7 @@ if [ "$ORIG_BITRATE" -gt "3072" ]; then
         -g ${FRAME_RATE} -keyint_min $GOP_INTERVAL\
         -maxrate ${BRATES5} \
         -c:a aac \
-        -b:a 96k -ac 2 \
+        -b:a 160k -ac 2 \
         -hls_time $HLS_TIME -hls_list_size 0 \
         -start_number 0 \
         ${DIR}/out/${PREFIX}_${BRATES5}.m3u8 "  "   \
