@@ -10,7 +10,8 @@ VIDEO_TIME=$(ffprobe "$SOURCE_FILE" 2>&1 | grep Duration | awk '{print $2}' | se
 ORIG_BITRATE=$(ffprobe "$SOURCE_FILE"  2>&1 | grep bitrate |grep Duration | awk '{print $6}')
 H264_PRESET=veryslow;
 ORIG_FRAME_RATE=$(ffprobe "${SOURCE_FILE}"  2>&1| grep ",* fps" | cut -d "," -f 5 | cut -d " " -f 2 | perl -e  'use POSIX; print ceil(<>)' )
-
+VIDEO_RES=$(ffprobe "${SOURCE_FILE}" 2>&1 | grep Stream | grep -oP ', \K[0-9]+x[0-9]+' | awk -F 'x' '{print $1}')
+AUDIO_RATE=$(ffprobe "${SOURCE_FILE}"  2>&1 | grep Stream | grep Audio  |grep -oP ', \K[0-9]+ kb' | sed s/\\skb//g)
 FRAME_RATE=$ORIG_FRAME_RATE;
 GOP_INTERVAL=$(( $FRAME_RATE *2 ));
 
@@ -35,130 +36,9 @@ ffmpeg  -y -i "$1" \
         -vbsf h264_mp4toannexb \
         -flags -global_header \
         -pix_fmt yuv420p \
-        -c:v libx264 -x264opts "keyint=$GOP_INTERVAL:min-keyint=$GOP_INTERVAL:pic-struct:no-scenecut" -movflags fragkeyframe  \
-        -vprofile ${PROFILE} -level ${LEVEL}  -preset $H264_PRESET \
-        -g ${FRAME_RATE} -keyint_min $GOP_INTERVAL\
-        -bufsize ${BRATES0}   \
-        -filter:v "scale=iw*.10:-2" \
-        -b:v ${BRATES0} -r $FRAME_RATE \
-        -maxrate ${BRATES0} \
-        -c:a aac \
-        -b:a 32k -ac 1 \
-        -hls_time $HLS_TIME -hls_list_size 0 \
-        -start_number 0 \
-        ${DIR}/out/${PREFIX}_${BRATES0}.m3u8 \
 EOF
+echo "Resolution: $VIDEO_RES :  Bitrate: $ORIG_BITRATE  Audio Rate: $AUDIO_RATE  Script :[$OUTSCRIPT]"
+$DIR/calculate-steps.pl $VIDEO_RES $ORIG_BITRATE $AUDIO_RATE $OUTSCRIPT
 
-if [ "$ORIG_BITRATE" -gt "512" ]; then
-LASTRATE="512";
-cat  >> $OUTSCRIPT  <<  "EOF"
-   	-filter:v scale=iw*.20:-1 \
-	-bufsize ${BRATES1}   \
-	-b:v ${BRATES1} -r $FRAME_RATE \
-	-c:v libx264 -x264opts "keyint=$GOP_INTERVAL:min-keyint=$GOP_INTERVAL:pic-struct:no-scenecut" -movflags fragkeyframe  \
-	-vprofile ${PROFILE} -level ${LEVEL}  -preset $H264_PRESET \
-	-g ${FRAME_RATE} -keyint_min $GOP_INTERVAL\
-	-maxrate ${BRATES1} \
-	-c:a aac \
-	-b:a 64k -ac 2 \
-	-hls_time $HLS_TIME -hls_list_size 0 \
-	-start_number 0 \
-	${DIR}/out/${PREFIX}_${BRATES1}.m3u8 \
-EOF
-fi
-
-if [ "$ORIG_BITRATE" -gt "1024" ]; then
-LASTRATE="1024";
-cat  >> $OUTSCRIPT  <<  "EOF"
-        -filter:v "scale=iw*.35:-2" \
-	-bufsize ${BRATES2}   \
-        -b:v ${BRATES2} -r $FRAME_RATE \
-	-c:v libx264 -x264opts "keyint=$GOP_INTERVAL:min-keyint=$GOP_INTERVAL:pic-struct:no-scenecut" -movflags fragkeyframe  \
-        -vprofile ${PROFILE} -level ${LEVEL}  -preset $H264_PRESET \
-        -g ${FRAME_RATE} -keyint_min $GOP_INTERVAL\
-        -maxrate ${BRATES2} \
-        -c:a aac \
-        -b:a 96k -ac 2 \
-        -hls_time $HLS_TIME -hls_list_size 0 \
-        -start_number 0 \
-        ${DIR}/out/${PREFIX}_${BRATES2}.m3u8 \
-EOF
-fi
-
-if [ "$ORIG_BITRATE" -gt "1512" ]; then
-LASTRATE="1512";
-cat  >> $OUTSCRIPT  <<  "EOF"
-        -filter:v scale=iw*.50:-2 \
-	-bufsize ${BRATES3}   \
-        -b:v ${BRATES3} -r $FRAME_RATE \
-	-c:v libx264 -x264opts "keyint=$GOP_INTERVAL:min-keyint=$GOP_INTERVAL:pic-struct:no-scenecut" -movflags fragkeyframe  \
-        -vprofile ${PROFILE} -level ${LEVEL}  -preset $H264_PRESET \
-        -g ${FRAME_RATE} -keyint_min $GOP_INTERVAL\
-        -maxrate ${BRATES3} \
-        -c:a aac \
-        -b:a 96k -ac 2 \
-        -hls_time $HLS_TIME -hls_list_size 0 \
-        -start_number 0 \
-        ${DIR}/out/${PREFIX}_${BRATES3}.m3u8    \
-EOF
-fi
-
-if [ "$ORIG_BITRATE" -gt "2048" ]; then
-LASTRATE="2048";
-cat  >> $OUTSCRIPT  <<  "EOF"
-    -filter:v scale=-1:-1 \
-        -bufsize ${BRATES4}   \
-        -b:v ${BRATES4} -r $FRAME_RATE \
-	-c:v libx264 -x264opts "keyint=$GOP_INTERVAL:min-keyint=$GOP_INTERVAL:pic-struct:no-scenecut" -movflags fragkeyframe  \
-        -vprofile ${PROFILE} -level ${LEVEL}  -preset $H264_PRESET \
-        -g ${FRAME_RATE} -keyint_min $GOP_INTERVAL\
-        -maxrate ${BRATES4} \
-        -c:a aac \
-        -b:a 128k -ac 2 \
-        -hls_time $HLS_TIME -hls_list_size 0 \
-        -start_number 0 \
-        ${DIR}/out/${PREFIX}_${BRATES4}.m3u8   \
-EOF
-fi
-
-if [ "$ORIG_BITRATE" -gt "3072" ]; then
-LASTRATE="3072"
-cat  >> $OUTSCRIPT  <<  "EOF"
-        -filter:v scale=-1:-1 \
-        -bufsize ${BRATES5}   \
-        -b:v ${BRATES5} -r $FRAME_RATE \
-	-c:v libx264 -x264opts "keyint=$GOP_INTERVAL:min-keyint=$GOP_INTERVAL:pic-struct:no-scenecut" -movflags fragkeyframe  \
-        -vprofile ${PROFILE} -level ${LEVEL}  -preset $H264_PRESET \
-        -g ${FRAME_RATE} -keyint_min $GOP_INTERVAL\
-        -maxrate ${BRATES5} \
-        -c:a aac \
-        -b:a 160k -ac 2 \
-        -hls_time $HLS_TIME -hls_list_size 0 \
-        -start_number 0 \
-        ${DIR}/out/${PREFIX}_${BRATES5}.m3u8   \
-EOF
-fi
-
-DIFF=$(expr $ORIG_BITRATE - $LASTRATE);
-if [ "$DIFF" -gt "150" ]; then
-cat  >> $OUTSCRIPT  <<  "EOF"
-        -filter:v scale=-1:-1 \
-        -bufsize ${ORIG_BITRATE}k   \
-        -b:v  ${ORIG_BITRATE}k -r $FRAME_RATE \
-	-c:v libx264 -x264opts "keyint=$GOP_INTERVAL:min-keyint=$GOP_INTERVAL:pic-struct:no-scenecut" -movflags fragkeyframe  \
-        -vprofile ${PROFILE} -level ${LEVEL}  -preset $H264_PRESET \
-        -g ${FRAME_RATE} -keyint_min $GOP_INTERVAL\
-        -maxrate ${ORIG_BITRATE}k \
-        -c:a aac \
-        -b:a 160k -ac 2 \
-        -hls_time $HLS_TIME -hls_list_size 0 \
-        -start_number 0 \
-        ${DIR}/out/${PREFIX}_${ORIG_BITRATE}k.m3u8   \
-
-EOF
-fi
-
-
-#cat  $OUTSCRIPT
 source $OUTSCRIPT
 rm -fv $OUTSCRIPT
