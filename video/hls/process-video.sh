@@ -15,14 +15,11 @@ $DIR/put-sub.sh "${VIDEO_FILE}" "${FIX_SUB_FILE}" "${SUBBED_VIDEO}"
 
 
 # HLS ENCONDING
-$DIR/dynamic-encoder.hsl.sh "${SUBBED_VIDEO}" "${PREFIX}"
+$DIR/dynamic-encoder.hls.sh "${SUBBED_VIDEO}" "${PREFIX}"
 
 #MASTERPLAYLIST
 $DIR/build-master.sh "${PREFIX}" >> "$DIR/${PREFIX}_master.m3u8";
 mv "$DIR/${PREFIX}_master.m3u8" "$DIR/out/"
 
 
-mkdir -p "$DIR/out/${PREFIX}"
-#mv "$DIR/out/${PREFIX}*.ts" "$DIR/out/${PREFIX}"
-#mv "$DIR/out/${PREFIX}*.m3u8" "$DIR/out/${PREFIX}"
 

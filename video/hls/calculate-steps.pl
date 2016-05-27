@@ -4,12 +4,14 @@ use POSIX;
 my $sourceResolution = $ARGV[0];
 my $sourceBitrate    = $ARGV[1];
 my $minSteps	     = 3;
-my $bitRateShift     = 256;
+my $bitRateShift     = 512;
 my $audioRate	     = $ARGV[2];
 my $outScript	     = $ARGV[3];
 
 my $bandSteps = floor($sourceBitrate / $bitRateShift);
 print "Bandwitdh Possible Steps: $bandSteps \n";
+
+
 my $startBitRate = $sourceBitrate;
 my $stepRate	 = 0;
 my %variants;
