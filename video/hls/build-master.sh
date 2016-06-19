@@ -5,7 +5,7 @@ PREFIX=$1;
 echo "#EXTM3U"
 echo "#EXT-X-PLAYLIST-TYPE:VOD"
 
-for IDX in $(ls out/${PREFIX}*.m3u8) 
+for IDX in $(ls out/${PREFIX}*k.m3u8) 
 do
  #echo ${IDX}
  RESOLUTION=$(ffprobe ${IDX} 2>&1 | grep Stream | grep Video | grep -o -E "([0-9]{2,})x([0-9]*)")
