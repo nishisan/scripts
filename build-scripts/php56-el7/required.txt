@@ -1,0 +1,2 @@
+yum install -y bzip2-devel curl-devel gmp-devel httpd-devel pam-devel libedit-devel libtool-ltdl-devel systemtap-sdt-devel readline-devel systemd-devel libevent-devel libc-client-devel cyrus-sasl-devel openldap-devel mysql-devel postgresql-devel unixODBC-devel  libxml2-devel firebird-devel net-snmp-devel libxslt-devel libxml2-devel libXpm-devel libdb-devel  t1lib-devel tokyocabinet-devel libmcrypt-devel libtidy-devel freetds-devel aspell-devel recode-devel enchant-devel
+
