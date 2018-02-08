@@ -20,15 +20,23 @@ cd  ${SOURCE_DIR}
 # YASM
 git clone --depth 1 git://github.com/yasm/yasm.git
 #git clone --depth 1 https://git.videolan.org/git/x264.git
+# H264 last Stable Release
 wget https://download.videolan.org/pub/videolan/x264/snapshots/last_stable_x264.tar.bz2
-
+# H265 Sources
 hg clone https://bitbucket.org/multicoreware/x265
+# Lib Ass
 git clone https://github.com/libass/libass.git
+
 git clone --depth 1 git://git.code.sf.net/p/opencore-amr/fdk-aac
-curl -L -O http://downloads.sourceforge.net/project/lame/lame/3.99/lame-3.99.5.tar.gz
-curl -L -O https://ftp.osuosl.org/pub/xiph/releases/opus/opus-1.2.tar.gz 
-curl -L -O http://downloads.xiph.org/releases/ogg/libogg-1.3.2.tar.gz
+
+curl -L -O http://downloads.sourceforge.net/project/lame/lame/3.100/lame-3.100.tar.gz
+
+curl -L -O https://archive.mozilla.org/pub/opus/opus-1.2.1.tar.gz
+
+curl -L -O http://downloads.xiph.org/releases/ogg/libogg-1.3.3.tar.gz
+
 curl -L -O http://downloads.xiph.org/releases/vorbis/libvorbis-1.3.5.tar.gz
+
 git clone --depth 1 https://chromium.googlesource.com/webm/libvpx.git
 git clone http://source.ffmpeg.org/git/ffmpeg.git
 
