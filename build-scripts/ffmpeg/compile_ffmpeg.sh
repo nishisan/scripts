@@ -10,6 +10,7 @@ mkdir -p ${TARGET_DIR}
 mkdir -p ${SOURCE_DIR}
 export makeflags='-j 4'
 
+# For Centos
 # yum -y install autoconf automake cmake freetype-devel gcc gcc-c++ git libtool make mercurial nasm pkgconfig zlib-devel fontconfig.x86_64 fontconfig-devel.x86_64 fribidi-devel.x86_64 fribidi;
 cd  ${SOURCE_DIR}
 #rm * -frv
@@ -18,7 +19,9 @@ cd  ${SOURCE_DIR}
 
 # YASM
 git clone --depth 1 git://github.com/yasm/yasm.git
-git clone --depth 1 git://git.videolan.org/x264
+#git clone --depth 1 https://git.videolan.org/git/x264.git
+wget https://download.videolan.org/pub/videolan/x264/snapshots/last_stable_x264.tar.bz2
+
 hg clone https://bitbucket.org/multicoreware/x265
 git clone https://github.com/libass/libass.git
 git clone --depth 1 git://git.code.sf.net/p/opencore-amr/fdk-aac
@@ -42,6 +45,8 @@ make distclean
 # libx264 
 cd  ${SOURCE_DIR}
 #git clone --depth 1 git://git.videolan.org/x264
+tar jxvf last_stable_x264.tar.bz2
+mv x264-snapshot* x264
 cd x264
 PKG_CONFIG_PATH="${TARGET_DIR}/lib/pkgconfig" ./configure --prefix="${TARGET_DIR}" --bindir="${TARGET_DIR}/bin" --enable-static
 make
@@ -128,7 +133,7 @@ git config --global http.sslVerify false
 cd ${SOURCE_DIR}
 #git clone http://source.ffmpeg.org/git/ffmpeg.git
 cd ffmpeg
-PKG_CONFIG_PATH="${TARGET_DIR}/lib/pkgconfig" ./configure --prefix="${TARGET_DIR}" --extra-cflags="-I${TARGET_DIR}/include" --extra-ldflags="-L${TARGET_DIR}/lib" --bindir="${TARGET_DIR}/bin" --pkg-config-flags="--static" --enable-gpl --enable-nonfree --enable-libfdk-aac --enable-libfreetype --enable-libmp3lame --enable-libopus --enable-libvorbis --enable-libvpx --enable-libx264 --enable-libx265 --enable-libass
+PKG_CONFIG_PATH="${TARGET_DIR}/lib/pkgconfig" ./configure --prefix="${TARGET_DIR}" --extra-cflags="-I${TARGET_DIR}/include" --extra-ldflags="-L${TARGET_DIR}/lib" --bindir="${TARGET_DIR}/bin" --pkg-config-flags="--static" --enable-gpl --enable-nonfree --enable-libfdk-aac --enable-libfreetype --enable-libmp3lame --enable-libopus --enable-libvorbis --enable-libvpx --enable-libx264 --enable-libx265 --enable-libass --extra-libs=-lpthread
 make
 make install
 make distclean
