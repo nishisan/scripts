@@ -8,7 +8,7 @@ TARGET_DIR=${DIR}/ffmpeg_build
 SOURCE_DIR=${DIR}/ffmpeg_sources
 mkdir -p ${TARGET_DIR}
 mkdir -p ${SOURCE_DIR}
-export makeflags='-j 4'
+export makeflags='-j 8'
 
 # For Centos
 # yum -y install autoconf automake cmake freetype-devel gcc gcc-c++ git libtool make mercurial nasm pkgconfig zlib-devel fontconfig.x86_64 fontconfig-devel.x86_64 fribidi-devel.x86_64 fribidi;
@@ -56,7 +56,7 @@ cd  ${SOURCE_DIR}
 tar jxvf last_stable_x264.tar.bz2
 mv x264-snapshot* x264
 cd x264
-PKG_CONFIG_PATH="${TARGET_DIR}/lib/pkgconfig" ./configure --prefix="${TARGET_DIR}" --bindir="${TARGET_DIR}/bin" --enable-static
+PKG_CONFIG_PATH="${TARGET_DIR}/lib/pkgconfig" ./configure --prefix="${TARGET_DIR}" --bindir="${TARGET_DIR}/bin" --enable-static 
 make
 make install
 make distclean
@@ -91,8 +91,8 @@ make distclean
 
 cd  ${SOURCE_DIR}
 #curl -L -O http://downloads.sourceforge.net/project/lame/lame/3.99/lame-3.99.5.tar.gz
-tar xzvf lame-3.99.5.tar.gz
-cd lame-3.99.5
+tar xzvf lame-3.100.tar.gz 
+cd lame-3.100
 PKG_CONFIG_PATH="${TARGET_DIR}/lib/pkgconfig" ./configure --prefix="${TARGET_DIR}" --bindir="${TARGET_DIR}/bin" --disable-shared --enable-nasm
 make
 make install
@@ -101,8 +101,8 @@ make distclean
 
 cd ${SOURCE_DIR}
 #curl http://downloads.xiph.org/releases/opus/opus-1.1.2.tar.gz -O opus-1.1.2.tar.gz
-tar -zxvf opus-1.2.tar.gz
-cd opus-1.2
+tar -zxvf opus-1.2.1.tar.gz
+cd opus-1.2.1
 autoreconf -fiv
 PKG_CONFIG_PATH="${TARGET_DIR}/lib/pkgconfig" ./configure --prefix="${TARGET_DIR}" --disable-shared
 make
@@ -111,8 +111,8 @@ make distclean
 
 cd ${SOURCE_DIR}
 #curl -O http://downloads.xiph.org/releases/ogg/libogg-1.3.2.tar.gz
-tar xzvf libogg-1.3.2.tar.gz
-cd libogg-1.3.2
+tar xzvf libogg-1.3.3.tar.gz
+cd libogg-1.3.3
 PKG_CONFIG_PATH="${TARGET_DIR}/lib/pkgconfig" ./configure --prefix="${TARGET_DIR}" --disable-shared
 make
 make install

@@ -47,3 +47,7 @@ yum install autoconf automake cmake freetype-devel gcc gcc-c++ git libtool make 
 
 On Ubuntu Systems:
 
+ASM Note
+========
+Debian based system shout use NASM Repo AT: http://www.nasm.us/nasm.repo in order to compile new version of x264 
+
