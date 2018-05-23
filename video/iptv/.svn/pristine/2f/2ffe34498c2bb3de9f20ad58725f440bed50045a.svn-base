@@ -1,0 +1,10 @@
+AM_FLAGS   	=  --pedantic -Wall -std=c99 -O3 
+AM_LDFLAGS 	= -g -O3 
+
+LIBS = -Ilibconfig -Llibconfig -lconfig -pthread -lpthread
+# this lists the binaries to produce, the (non-PHONY, binary) targets in:
+# the previous manual Makefile
+iptv_analyzer_CPPFLAGS = -I../libs
+bin_PROGRAMS = iptv-analyzer iptv-manager
+iptv_analyzer_SOURCES = iptv.h  rtp.h mpegts.h flow_analyzer.h flow_manager.h utils.h  logger.h configuration.h flow_stream.h  manager_thread.h manager_thread.c flow_stream.c iptv.c flow_analyzer.c flow_manager.c logger.c configuration.c utils.c
+iptv_manager_SOURCES  = logger.h logger.c flow_analyzer.h  configuration.h flow_manager.h iptv-manager.c

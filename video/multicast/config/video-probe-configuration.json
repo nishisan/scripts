@@ -1,0 +1,49 @@
+{
+  "probeName": "osa-bsa-dev",
+  "sendToEndpoints": true,
+  "endpoints": [
+    "http://10.200.20.201:8050/message"
+  ],
+  "groups": [
+    {
+      "group": "239.128.1.0",
+      "port": 5001,
+      "ifName": "enp0s25"
+    },
+    {
+      "group": "239.128.2.225",
+      "port": 5001,
+      "ifName": "enp0s25"
+    },
+    {
+      "group": "239.129.17.0",
+      "port": 5001,
+      "ifName": "enp0s25"
+    },
+    {
+      "group": "239.129.17.1",
+      "port": 5001,
+      "ifName": "enp0s25"
+    },
+    {
+      "group": "239.128.1.217",
+      "port": 5001,
+      "ifName": "enp0s25"
+    }
+  ],
+  "internalConfiguration": {
+    "socketBufferSize": 20485760,
+    "maxStream": 250,
+    "maxSelectorThreads": 4,
+    "selectorTimeout": 2000,
+    "defaultInitialThreadPoolsSize": 1024,
+    "rawFifoSize": 10000,
+    "streamFlowFifoSize": 5000
+  },
+  "reportTime": 30,
+  "jsonPrettyPrinting": false,
+  "spaceBwAdds": 100,
+  "probeId": "e4edc802-1552-44a8-81f3-7e87cb9257bc"
+}
+
+

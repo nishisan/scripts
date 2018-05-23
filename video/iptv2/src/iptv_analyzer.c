@@ -3,11 +3,10 @@
 #include <libconfig.h>
 #include <syslog.h>
 #include "configuration.h"
-
+#include "monitoring_group.h"
 // This is The Main Configuration Object!
 config_t cfg;
-
-
+monitoring_group *groups;
 /**
   * Open The Syslog xD
   *
@@ -26,15 +25,22 @@ int loadConfiguration(void){
         printf("Failed Loading cofiguration: %s", config_error_text(&cfg));
     }else{
 		char msg[1024];
-		syslog(LOG_INFO,"Configurtion Read OK [%s]","iptv-analyzer.cfg");
+		syslog(LOG_INFO,"Configuration Read OK [%s]","iptv-analyzer.cfg");
 		syslog(LOG_INFO,"Channel List File is [%s]",loadStringKey(&cfg,"server.channel-list-file"));
 		return 0;		
     }
 	return 1;
 }
 
+int allocateArayGroupSize(){
+	// max possibel channels
+	int max = loadIntKey(&cfg,"server.max-channel-count");
+	groups  = malloc(sizeof(monitoring_group) * max);  
+}
+
 int main(int argc, char *argv[]){
 	initSyslogger();
 	loadConfiguration();
+	allocateArayGroupSize();
 	return 0;
 }

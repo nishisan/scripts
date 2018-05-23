@@ -1,0 +1,36 @@
+#-----------------------------
+# SAMPLE CONFIGURAATION FILE
+#-----------------------------
+
+# Server Configuration
+server = {
+	# Primary server...
+	primary= {
+		ip-address 		= "192.168.24.1";
+	  	port 			= 8080;
+	  	enabled			= true;
+		probe-interval	= 30;
+	};
+	# Backup server is optional	
+	backup= {
+		ip-address    	= "0.0.0.0";
+     	port         	= 8080;
+      	enabled       	= false;
+		probe-interval	= 30;
+    };
+
+};
+
+# Cliend Side configuration
+client = {
+	name			= "probe-1";
+	challenge		= "<PASSWD>";
+	max-threads		= 5;
+	max-groups  	= 4;
+	log-console 	= true;
+	log-file-enable	= false;
+	log-file		= "iptv.log";
+	log-syslog		= false;
+	syslog-facility	= "";
+	shmid			= 5647; # HAS TO BE UNIQ!
+};

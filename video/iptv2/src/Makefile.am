@@ -6,4 +6,4 @@ LIBS = -Ilibconfig -Llibconfig -lconfig -pthread -lpthread
 # the previous manual Makefile
 iptv_analyzer_CPPFLAGS = -I../libs
 bin_PROGRAMS = iptv-analyzer
-iptv_analyzer_SOURCES = configuration.h configuration.c iptv_analyzer.h iptv_analyzer.c
+iptv_analyzer_SOURCES = configuration.h configuration.c monitoring_group.h iptv_analyzer.h iptv_analyzer.c

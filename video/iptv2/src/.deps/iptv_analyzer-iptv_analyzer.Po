@@ -32,7 +32,8 @@ iptv_analyzer-iptv_analyzer.o: iptv_analyzer.c /usr/include/stdc-predef.h \
  /usr/include/arm-linux-gnueabihf/bits/stdlib.h /usr/include/libconfig.h \
  /usr/include/syslog.h /usr/include/arm-linux-gnueabihf/sys/syslog.h \
  /usr/include/arm-linux-gnueabihf/bits/syslog-path.h \
- /usr/include/arm-linux-gnueabihf/bits/syslog.h configuration.h
+ /usr/include/arm-linux-gnueabihf/bits/syslog.h configuration.h \
+ monitoring_group.h
 
 /usr/include/stdc-predef.h:
 
@@ -121,3 +122,5 @@ iptv_analyzer-iptv_analyzer.o: iptv_analyzer.c /usr/include/stdc-predef.h \
 /usr/include/arm-linux-gnueabihf/bits/syslog.h:
 
 configuration.h:
+
+monitoring_group.h:

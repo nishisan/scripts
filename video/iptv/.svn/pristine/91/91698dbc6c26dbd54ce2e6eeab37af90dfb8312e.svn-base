@@ -1,0 +1,601 @@
+#include <pthread.h>
+#include <stdio.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <strings.h>
+#include <assert.h>
+#include <stdlib.h>
+#include <string.h>
+#include <inttypes.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <poll.h>
+#include <bitstream/mpeg/psi/pmt.h>
+#include <bitstream/mpeg/psi/pmt_print.h>
+#include <bitstream/mpeg/ts.h>
+#include <bitstream/ietf/rtp.h>
+//#include <stdint.h>
+
+//#include "rtp.h"
+//#include "mpegts.h"
+
+#include "logger.h"
+#include "configuration.h"
+#include "flow_stream.h"
+
+#include "flow_analyzer.h"
+
+int oi = 0;
+static int
+get_sockbuf_size( int sockfd, int option, size_t* const len, const uint8_t* bufname ){
+    int rc = 0;
+    size_t buflen = 0;
+    socklen_t varsz = sizeof(buflen);
+    assert( sockfd && len && bufname );
+    rc = getsockopt( sockfd, SOL_SOCKET, option, &buflen, &varsz );
+    if (0 != rc) {
+        //mperror( g_flog, errno, "%s: getsockopt (%s) [%d]", __func__, bufname, option);
+        return -1;
+    }
+    return rc;
+
+}
+
+
+int get_rcvbuf( int sockfd, size_t* const len ) {
+		    return get_sockbuf_size( sockfd, SO_RCVBUF, len, "receive" );
+}
+
+
+/**
+ * Create a RTP Header
+ */
+rtp_hdr_t *create_rtp_reader(void){
+	rtp_hdr_t *header = (rtp_hdr_t*) malloc(sizeof(rtp_hdr_t));
+	if(header!=NULL){
+		return header;
+	}
+	error("Morri sem memoria");;
+}
+
+/**
+ * Deallocate memory of our rtp header
+ */
+void free_rtp_header( rtp_hdr_t *header ){
+	if(header!=NULL){
+		free(header);
+	}
+}
+
+/**
+ * Alocacao para o transport_packet_header
+ */
+transport_packet_header *create_transport_packet_header(){
+	transport_packet_header *header = (transport_packet_header*) malloc(sizeof(transport_packet_header));
+	if(header!=NULL){
+        return header;
+    }
+    error("Morri sem memoria");;
+
+}
+
+/**
+ * Deslocacao para o transport_packet_header
+ */
+void free_transport_packet_header(transport_packet_header *header){
+	if(header!=NULL){
+        free(header);
+    }
+}
+
+void* statsThread(void* args){
+    analyzer_info *info;
+    info =(analyzer_info*)args;
+	int curPackets			= 0;
+	int interval  			= 5;
+	int notReceivingCount 	= 0;
+	while(info->running){
+		info->delta	 = info->packets - curPackets;
+		if (info->delta == 0){
+			notReceivingCount++;
+		}
+
+		if (notReceivingCount == 2){
+			info->running 		= 0;
+			info->trouble_found = 1;
+			log_debug("Exiting With Errors");
+		} 
+		info->rate   = (float) info->delta / (float) interval;
+		//log_debug("\t Group: %s Name [%s] Got: %d ,packets Delta is %d RTP Packet Rate is [ %.2f /s ]",info->mcast_group,info->sdt->descriptor->service_name,info->packets,info->delta,info->rate);
+		curPackets= info->packets;
+		info->brate = ( ( (float) info->bytes / (float) interval ) * 8 ) / (float) 1024 ;
+		info->bytes = 0;
+		sleep(interval);
+	}
+}
+
+
+/**
+ * Here is where it actually receives the data :)
+ */
+int recvData(analyzer_info* info,struct sockaddr_in addr,int sock){
+	int addrlen = sizeof(addr);
+	int cnt		= 0;
+	uint8_t buff[2048];
+    unsigned int prev = 0;
+	
+	//stats thread
+	pthread_t stats;
+	pthread_create(&stats,NULL,&statsThread,info);
+	
+	//fcntl(sock, F_SETFL, O_NONBLOCK);
+	for(;;){	
+		if(info->running==0){
+			log_debug("Shutting down me %s",info->mcast_group);
+			break;
+		}	
+
+		//log_debug("Goiing to get\n");
+		cnt = recvfrom(sock, buff, 2048, 0,(struct sockaddr *) &addr, &addrlen);
+		//log_debug("Goiing to git\n");
+
+		if (cnt < 0){
+			//info->running = 0;
+		}else{
+			//parse data
+			rtp_hdr_t *header 					= create_rtp_reader() ;
+            transport_packet_header *ts_header  = create_transport_packet_header();
+        
+			decode_rtp_packet(buff,header,cnt,&prev,info)  ;
+			decode_ts_packet(header,ts_header,info);
+		
+			free_rtp_header(header);	
+			free_transport_packet_header(ts_header);
+		}
+		info->packets++;
+		//log_debug("Packet is %d CNT is %d", info->packets,cnt);
+		//sleep(1);
+		//usleep(20);
+
+	}
+	
+}
+
+int initSocket(analyzer_info* info){
+	struct sockaddr_in addr;
+	int sock;
+	struct ip_mreq mreq;
+	size_t  curr_rcvbuf_len = 0;
+	sock = socket(AF_INET, SOCK_DGRAM, 0);
+	if (sock >= 0) {
+	bzero((uint8_t *)&addr, sizeof(addr));
+   	addr.sin_family = AF_INET;
+	addr.sin_addr.s_addr = inet_addr(info->mcast_group);
+    addr.sin_port = htons(info->mcast_port); //3001 para vivo1 5001 para vivo2
+		if (bind(sock, (struct sockaddr *) &addr, sizeof(addr)) >= 0) {
+			mreq.imr_multiaddr.s_addr = inet_addr(info->mcast_group);
+			mreq.imr_interface.s_addr = htonl(INADDR_ANY);	
+			int enable =1; // ver o que faz
+			if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int)) >= 0){
+				if (setsockopt(sock, IPPROTO_IP, IP_ADD_MEMBERSHIP,&mreq, sizeof(mreq)) >= 0) {
+					// Create timeout !!!
+					struct timeval tv;
+					tv.tv_sec  = 5;
+					tv.tv_usec = 0;
+					if (setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO,&tv,sizeof(tv)) >= 0) {
+						if(get_rcvbuf( sock, &curr_rcvbuf_len )>=0){
+							recvData(info,addr,sock);					
+                   		 }else{
+                   	   	 	return -4;
+                   	 	}
+					}
+
+				}else{
+					return -3;
+				}
+	
+			}else{
+				// error("setsockopt(SO_REUSEADDR) failed");
+				return -2;
+			}
+		}
+	}else{
+		return -1;
+	}
+	return 0;
+}
+void* analyzerFlowThread(void* args){
+	analyzer_info *info;
+	info =(analyzer_info*)args;
+	log_debug("Receiving from %s", info->mcast_group);
+	initSocket(info);
+	return NULL;
+}
+
+int decode_ts_pat(pat_table* pat,uint8_t *ts,analyzer_info* analyzer){
+
+	pat->tid                     = (uint8_t)  ( ts[5]  );
+    pat->syntax_indicator        = (uint8_t)  ( ts[6]  >> 7 ) & 0x01;
+    pat->reserved                = (uint8_t)  ( ts[6]  >> 4 ) & 0x03;
+    pat->length                  = (uint16_t) ( ts[6]  << 8 ) | ts[7]  & 0x0fff;
+    pat->transport_streamid      = (uint16_t) ( ts[8]  << 8 ) | ts[9];
+    pat->reserved2               = (uint8_t)  ( ts[10] >> 6 ) & 0x03;
+    pat->version_number          = (uint8_t)  ( ts[10] >> 1 ) & 0x3E;
+    pat->current_next_indicator  = (uint8_t)  ( ts[10] ) & 0x01;
+    pat->section_number          = (uint8_t)  ( ts[11] );
+    pat->last_section_number     = (uint8_t)  ( ts[12] );
+    pat->program_number          = (uint16_t) ( ts[13] ) 	  | ts[14]  ;
+
+	pat->reserved3               = (uint8_t)  ( ts[15] >> 6 ) & 0x07;
+	
+	//PROGRAM MAP PID
+	pat->network_pid			 = (uint16_t) ( ts[15] << 8 ) | ts[16] & 0x1FFF ;
+
+	//log_debug("Found Pat PID is %x", pat->network_pid);
+	return 0;
+}
+
+
+int decode_ts_pmt(pmt_table* pmt,uint8_t* ts){
+	
+	pmt->tid						= (uint8_t) ts[5];
+	pmt->syntax_indicator			= (uint8_t) (ts[6]  >> 7 ) & 0x01;
+	pmt->reserved                   = (uint8_t) (ts[6]  >> 4 ) & 0x03;
+    pmt->length                     = (uint16_t)(ts[6]  << 8 ) | ts[7]  & 0x0fff;
+    pmt->transport_streamid         = (uint16_t)(ts[8]  << 8 ) | ts[9];
+    pmt->reserved2                  = (uint8_t) (ts[10] >> 6 ) & 0x03;
+    pmt->version_number             = (uint8_t) (ts[10] >> 1 ) & 0x3E;
+    pmt->current_next_indicator     = (uint8_t) (ts[10]  ) & 0x01;
+    pmt->section_number             = (uint8_t) (ts[11] );
+    pmt->last_section_number        = (uint8_t) (ts[12] );
+	pmt->reserved3					= (uint8_t) (ts[13] >> 5 ) & 0x7;	
+    pmt->pcr_pid					= (uint16_t)(ts[13] << 8 ) | ts[14] & 0x1FFF;	
+	pmt->reserved4					= (uint8_t) (ts[15] >> 4 ) & 0xf;
+	//diz dos proximos x bytes quantos sao descriptors
+	pmt->program_info_length		= (uint16_t)(ts[15] << 8 ) | ts[16] & 0xfff;
+
+	//log_debug("Found PMT With PCR PID  %x %x",pmt->program_info_length,pmt->reserved3);
+	if ((int) pmt->program_info_length  > 0){
+		//comeca no byte 17
+		
+		uint8_t descriptors[(int) pmt->program_info_length];
+		
+		memcpy(&descriptors,&ts[17],(int) pmt->program_info_length);
+		int result = decode_ts_pmt_descriptors(pmt, pmt->program_info_length,descriptors);	
+		// até aqui perdemos 9 bytes - 17 dos atuas do pacote
+		// o Delta é o tamanho restante com os descriptors + o CRC que come 4bytes :)
+		// delta na real é quantos bytes sobraram...
+		
+		int delta = pmt->length - 9 - result -4;
+		
+		// o -4 que vc ve aqui é porque descontamos os ultimos 4 bytes responsavel pelo crc
+		uint8_t streams[delta ];
+		//cria uma cópia só dos streams :)
+		memcpy(&streams,&ts[result+17], delta);	
+		//log_debug("Stream End at: %d , 0x%x == %x Delta %d Payload is %d", result,ts[result+17],streams[0],delta-4,strlen(streams));	
+		decode_ts_pmt_streams(pmt,streams,delta);
+		//pmt_print(ts,print_wrapper,NULL,iconv_wrapper, NULL,PRINT_XML);
+
+	}else{
+		// quando program info length é 0 quer dizer que não tem descriptors só streams
+		int delta = pmt->length - 9  - 4;
+
+		//log_debug("Length is %d Delta is %d", pmt->length,delta);
+		uint8_t streams[delta];
+
+		memcpy(&streams,&ts[17],delta);
+		
+		//log_debug("Stream length: %d , %x == %x Delta %d", pmt->length,ts[17],streams[0],delta);
+		
+		decode_ts_pmt_streams(pmt,streams,delta);
+	}
+	return 0;
+}
+
+
+descriptor_table *decode_descriptor(uint8_t* ts){
+    descriptor_table *descriptor    = malloc(sizeof(descriptor_table));;
+    descriptor->descriptor_tag      = (uint8_t) ts[0];
+    descriptor->descriptor_length   = (uint8_t) ts[1];
+    descriptor->next 				= NULL;
+	descriptor->_match				=1;
+    return descriptor;
+}
+
+void destroy_descriptor(descriptor_table  *descriptor){
+	free(descriptor);
+}
+
+void remove_tag_descriptor_first(descriptor_table ** head) {
+    int retval = -1;
+    descriptor_table * next_node = NULL;
+    if (*head == NULL) {
+        return;
+    }
+    next_node = (*head)->next;
+	destroy_descriptor(*head);	
+	//chama os metodos de free!
+	//shutdown_thread(*head);
+}
+
+
+int remove_tag_descriptor_by_index(pmt_table* pmt, int n) {
+    int i = 0;
+    int retval = -1;
+   	descriptor_table **head = &pmt->descriptors; 
+	descriptor_table * current = *head;
+    descriptor_table * root    = *head;
+    descriptor_table * temp_node = NULL;
+
+    if (n == 0) {
+		remove_tag_descriptor_first(head);
+        return 0;
+    }
+    int x = 0;
+    for ( x = 0; x < n-1; x++) {
+        if (current->next == NULL) {
+            return -1;
+        }
+        current = current->next;
+    }
+
+    temp_node     = current->next;
+    current->next = temp_node->next;
+	
+	// chama os metodos de free
+
+	destroy_descriptor(temp_node);
+	// Reordena os indices	
+	reorder_tag_descriptors(root); //reordena
+    pmt->descriptors_size--;
+	// free(temp_node);
+    //root->size--;
+    return 0;
+}
+
+
+void add_descriptor(pmt_table *pmt,uint8_t* ts){
+	descriptor_table * current = pmt->descriptors;
+    int size = pmt->descriptors_size;
+	if (current ==NULL){
+		pmt->descriptors = decode_descriptor(ts);
+		pmt->descriptors_size 		= 1;
+		pmt->descriptors->_index 	= 0;
+	}else{
+		while (current->next != NULL) {
+				current = current->next;
+		}
+		descriptor_table *descriptor = decode_descriptor(ts);
+		current->next = descriptor;
+		descriptor->_index = current->_index +1;
+		current->next->next = NULL;
+		pmt->descriptors_size = size +1;
+		//log_debug("Added Descriptor %x to position %d",descriptor->descriptor_tag,pmt->descriptors_size);
+	}
+}
+
+void reorder_tag_descriptors(descriptor_table* table){
+	descriptor_table* root = table;
+	int index = 0;
+	while(root !=NULL){
+    	root->_index = index;
+		index++;    
+		root = root->next;
+    }
+}
+
+int tag_desc_exists(descriptor_table* table,uint8_t tag){
+	descriptor_table* root = table;
+	while(root !=NULL){
+		if (root->descriptor_tag == tag){
+			root->_match =1;
+			return root->_index;
+		}	
+		root = root->next;
+	}
+	return -1;
+
+}
+int decode_ts_pmt_descriptors(pmt_table* pmt,uint16_t length,uint8_t* ts){
+	int index = 0;	
+	int bytes = (int) length;
+	int curByte = 0;
+	int descriptors =0;
+	if (pmt->descriptors !=NULL){
+		descriptor_table* root =pmt->descriptors;
+		while(root !=NULL){
+			root->_match =0;
+			root = root->next;
+		}
+	}
+
+	while(curByte < bytes){
+		uint8_t tag    	= (uint8_t) ts[index + curByte];
+		uint8_t length 	= (uint8_t) ts[index + curByte + 1];
+		uint8_t descriptor[2+length];
+		
+		memcpy(&descriptor,&ts[index + curByte],2+length);
+		
+		if (pmt->descriptors  ==NULL){
+				add_descriptor(pmt,descriptor);
+		}else{
+			if (tag_desc_exists(pmt->descriptors,tag) < 0){
+				add_descriptor(pmt,descriptor);
+			}
+		}	
+		
+		curByte++;
+		curByte         = curByte + (int) length +1;
+		descriptors++;
+	}
+	
+	if (pmt->descriptors !=NULL){
+        descriptor_table* root =pmt->descriptors;
+		int deleted = 0 ;
+        while(root !=NULL){
+            if(root->_match ==0){
+				remove_tag_descriptor_by_index(pmt,root->_index);
+				deleted++;
+			}
+
+            root = root->next;
+        }
+    }
+	curByte = curByte + index;	
+	return curByte;
+}
+
+int decode_ts_sdt(sdt_table* sdt,uint8_t* ts){
+	sdt->tid					 	= (uint8_t)  ts[5];
+	sdt->syntax_indicator        	= (uint8_t) (ts[6]  >> 7 ) & 0x01;	
+	sdt->reserved                	= (uint8_t) (ts[6]  >> 4 ) & 0x03;	
+	sdt->length                  	= (uint16_t)(ts[6]  << 8 ) | ts[7]  & 0x0fff;	
+	sdt->transport_streamid      	= (uint16_t)(ts[8]  << 8 ) | ts[9];
+	sdt->reserved2               	= (uint8_t) (ts[10] >> 6 ) & 0x03;
+    sdt->version_number          	= (uint8_t) (ts[10] >> 1 ) & 0x3E;
+    sdt->current_next_indicator  	= (uint8_t) (ts[10]  ) & 0x01;
+    sdt->section_number         	= (uint8_t) (ts[11] );
+    sdt->last_section_number     	= (uint8_t) (ts[12] );
+	sdt->original_network_id	 	= (uint16_t)(ts[13] << 8 ) | ts[14];
+	sdt->reserved3				 	= (uint8_t) (ts[15]);
+	sdt->service_id				 	= (uint16_t)(ts[16] << 8 ) | ts[17];
+	sdt->reserved4				 	= (uint8_t) (ts[18] & 0xFC) >>  2  ;
+	sdt->eit_schedule_flag		 	= (uint8_t) (ts[18] >> 1 )  & 0x01;
+	sdt->eit_present_following_flag = (uint8_t) (ts[18] & 0x01);
+	sdt->running_status				= (uint8_t) (ts[19] & 0xE0 ) >> 5;
+	sdt->free_ca_mode				= (uint8_t) (ts[19] & 0x10 ) >> 4;
+	sdt->descriptors_loop_length	= (uint16_t) (ts[19] <<8 | ts[20] & 0xFFF);
+
+	if ( ts[21] == 0x48){
+		//found SERVICE DESCRIPTOR;
+		sdt->descriptor->descriptor_tag					= (uint8_t)  ts[21];
+		sdt->descriptor->descriptor_length				= (uint8_t)  ts[22];
+		sdt->descriptor->service_type					= (uint8_t)  ts[23];
+		sdt->descriptor->service_provider_name_length 	= (uint8_t)  ts[24];
+		int spnl = (int) sdt->descriptor->service_provider_name_length ;
+		spnl++;
+		uint8_t spn[spnl];
+		memcpy(&spn,&ts[25],spnl);
+		spn[spnl] = '\0';
+		//sdt->descriptor->service_provider_name = spn;
+		sprintf(sdt->descriptor->service_provider_name,"%s",spn);
+		int startIndex = 25 + spnl-1 ;
+		sdt->descriptor->service_name_length			= (uint8_t)  ts[startIndex];
+		int snl = (int) sdt->descriptor->service_name_length;
+		uint8_t sn[snl+1];
+		memcpy(&sn,&ts[startIndex+1],snl);
+		sn[snl] = '\0';
+		//log_debug("Found Service : [%s]\n", sn);
+		sprintf(sdt->descriptor->service_name,"%s",sn);
+		//log_debug("Found Service : [%s]\n", sdt->descriptor->service_name);
+	}
+	return 0;
+}
+
+int decode_ts_packet( rtp_hdr_t* rtp_packet,transport_packet_header* ts_packet,analyzer_info* analyzer){
+	float tb= (float) rtp_packet->paylen / (float) 188;
+	int firstBlock = 0;
+	int totalBlocks = (int) tb;
+	//log_debug("Size Block is %f %d \n",totalBlocks, rtp_packet->paylen);
+	while (totalBlocks>0){
+		totalBlocks--;
+		uint8_t tBlock[188];
+		memcpy (&tBlock, &rtp_packet->payload[firstBlock], 188);
+		ts_packet->sync_byte                    = (uint8_t) (tBlock[0]) ;
+		ts_packet->transport_error_indicator    = (uint8_t) (tBlock[1]  >> 7) & 0x01;
+		ts_packet->payload_unit_start_indicator = (uint8_t) (tBlock[1]  >> 6) & 0x01;
+		ts_packet->transport_priority           = (uint8_t) (tBlock[1]  >> 5) & 0x01;
+		ts_packet->pid                          = (uint16_t) ((tBlock[1] << 8 )| tBlock[2] &  0x1fff);
+		ts_packet->transport_scrambling_control = (uint8_t) (tBlock[3]  >> 6 )& 0x03;
+		ts_packet->adaptation_field_control     = (uint8_t) (tBlock[3]  >> 4) & 0x03;
+		ts_packet->continuity_counter           = (uint8_t) (tBlock[3] )      & 0x0f;
+		firstBlock = firstBlock + 188;
+		uint8_t tableId							= tBlock[5] ;
+		//log_debug ("PID: 0x%x %d \n",ts_packet->sync_byte,firstBlock);
+		//log_debug ("PID: 0x%02hhx  \n" , ts_packet->payload_unit_start_indicator )	;
+	
+
+		if (ts_packet->pid == 0x0 ){
+			// Trabaho de extracao da pat
+			decode_ts_pat(analyzer->pat,tBlock,analyzer);
+			
+		}else if (ts_packet->pid == 0x11){
+			//SDT
+			//log_debug("Found ONE  0x%02x", tBlock[5]);
+			if ( tableId == 0x42){
+				decode_ts_sdt(analyzer->sdt,tBlock);
+			}
+		}else if ( ts_packet->payload_unit_start_indicator == 1 && ts_packet->adaptation_field_control ==1){
+			if(tableId == 0x02){
+				decode_ts_pmt(analyzer->pmt,tBlock);
+			}
+		}else{
+			//log_debug("ola\n");
+		}
+	}
+	
+	
+	return 0;
+}
+int decode_rtp_packet(uint8_t* buff,rtp_hdr_t* header,int recv,int* prev,analyzer_info* analyzer){
+	uint8_t buffer[recv];
+	memcpy (buffer, buff, recv);
+	header->version = (buffer[0] >> 6) & 0x03;
+	header->p  		= (buffer[0] >> 5) & 0x01;
+	header->x  		= (buffer[0] >> 4) & 0x01;
+	header->cc 		= (buffer[0] >> 0) & 0x0F;
+	header->m  		= (buffer[1] >> 7) & 0x01;
+	header->pt 		= (buffer[1] >> 0) & 0x7F;
+	memcpy (&header->seq, &buffer[2], 2);
+	header->seq 	= ntohs((unsigned short)header->seq);
+	memcpy (&header->ts, (uint8_t*) &buffer[4] , 4);// change to shifts for unified byte sex
+	header->ts 		= ntohl((unsigned short)header->ts);
+	memcpy (&header->ssrc, &buffer[8], 4);// change to shifts for unified byte sex
+	header->ssrc 	= ntohl(header->ssrc);
+	//log_debug("TS: %\n", header->ts);
+	if (header->x ==1){
+		// is extension has 4 more bytes
+		// 4 bytes where 2 first define profile
+		// 2 last define size of extension where each is 4 byte long
+		header->profile = (buffer[12] <<8)| buffer[13] ;
+		header->x_length= (buffer[14] <<8)| buffer[15];	
+		int xlength		= (int) header->x_length;
+		//log_debug("lengh of extension is %d\n",xlength);
+	
+	
+		if (xlength==0){
+			header->paylen  = recv - (12 + 4); //12 + 4 bytes
+			memcpy(&header->payload,&buffer[16],header->paylen);
+		}else if ( xlength >0){
+			int skip = xlength * 4;
+			header->paylen  = recv - ( 12 + 4 + skip );
+			// THIS NEED TO BE CHECKED!
+			// the profile extension has data
+			//if (header->profile == 0xBEDE){
+				// one byte header
+			//}else if (
+			//log_debug("Profile is [%x] and Extension size is %d\n" ,  header->profile,xlength);
+			
+			memcpy(&header->payload,&buffer[12+4+skip],header->paylen);
+		}
+
+	}else{	
+		header->paylen  = recv - 12;
+		memcpy(&header->payload,&buffer[12],header->paylen);
+	}
+	if(*prev>0)
+	if ((header->seq - (*prev) ) > 1 ){
+		if ((header->seq - (*prev) ) != -65535){ 
+			int lost = (header->seq - (*prev));
+			log_debug("Lost packets:[%d] Current Seq: [%d] Previous Seq:  [%d] Group: %s (%s)",lost,header->seq,(*prev),analyzer->mcast_group, analyzer->sdt->descriptor->service_name);
+		}
+	}
+	*prev = header->seq; 
+	analyzer->bytes = analyzer->bytes + header->paylen;
+	//log_debug("RTP Payload Extension  is %d, Size %d \n", header->x, header->paylen);
+	return 0;
+}
+
+
